@@ -22,4 +22,19 @@ code {
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 10000;
+}
+
+.tab-title {
+  display: block;
+}
+
+.tab-subtitle {
+  display: block;
+  font-size: 0.75em;
+  color: #999999;
+}
+
+.nav-link {
+  height: 100%;
 }

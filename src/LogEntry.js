@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Stack } from 'react-bootstrap';
 import { Trash } from 'react-bootstrap-icons';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
@@ -24,39 +25,35 @@ const LogEntry = ({ entry, onDelete, onPromptClick }) => {
     const words = text.split(' ');
 
     return words.map((word, index) => (
-      <span key={index} onMouseUp={handleWordSelection}>
+      <span key={index} onMouseUp={handleWordSelection} onTouchEnd={handleWordSelection}>
         {word}{' '}
       </span>
     ));
   };
 
+  const date = new Date(entry.timestamp);
+  const options = {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  };
 
-  // const renderHeader = () => {
-  //   return (
-  //     <Card.Header>
-  //       <div className="log-entry-header">
-  //         <div className="log-entry-timestamp">{timestamp}</div>
-  //         <div className="log-entry-details">
-  //           <div className="log-entry-prompt">
-  //             <span className="log-entry-label">Prompt:</span> {prompt}
-  //           </div>
-  //           <div className="log-entry-keywords">
-  //             <span className="log-entry-label">Keywords:</span> {keywords}
-  //           </div>
-  //           <div className="log-entry-theme">
-  //             <span className="log-entry-label">Theme:</span> {theme}
-  //           </div>
-  //           <div className="log-entry-ruleset">
-  //             <span className="log-entry-label">Ruleset:</span> {ruleset}
-  //           </div>
-  //         </div>
-  //       </div>
-  //     </Card.Header>
-  //   );
-  // };
+  const formattedDate = date.toLocaleString(undefined, options);
 
   return (
-    <Card className="log-entry">
+    <Card className="m-4">
+      <Card.Header>
+        <Stack direction="horizontal" gap={2}>
+          <p>{formattedDate}</p>
+          <p className="text-muted">|</p>
+          <p>{entry.prompt}</p>
+          {entry.keywords && (<><p className="text-muted">|</p><p className="text-italic">{entry.keywords}</p></>)}
+        </Stack>
+      </Card.Header>
       <Card.Body>
         <div className="log-entry-content">{renderEntryText(entry.response)}</div>
       </Card.Body>

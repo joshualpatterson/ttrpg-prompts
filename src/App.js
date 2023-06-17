@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Container, Card, Spinner, Tabs, Tab, Button, Modal, Form, Stack } from 'react-bootstrap';
 import { Plus, BoxArrowDown, Trash } from 'react-bootstrap-icons';
 import themes from './themes.json';
-import rulesets from './rulesets.json';
-import prompts from './prompts.json';
 import PromptButton from './PromptButton';
 import LogEntry from './LogEntry';
 
@@ -12,17 +10,34 @@ import { getNewPrompt } from './api.js';
 
 const App = () => {
   const [stories, setStories] = useState([]);
-  const [filteredPrompts, setFilteredPrompts] = useState(prompts);
+  const [activeStoryId, setActiveStoryId] = useState('');
+  const [prompts, setPrompts] = useState([]);
+  const [filteredPrompts, setFilteredPrompts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [activeStoryId, setActiveStoryId] = useState('');
   const [addStoryModalActive, setAddStoryModalActive] = useState(false);
   const [title, setTitle] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('');
-  const [selectedRuleset, setSelectedRuleset] = useState('');
   const [newStoryValidated, setNewStoryValidated] = useState(false);
   const [deleteStoryModalActive, setDeleteStoryModalActive] = useState(false);
   const [deleteStoryId, setDeleteStoryId] = useState('');
+
+  function exportToCSV() {
+    const activeStory = stories.filter(story => story.id === activeStoryId)[0];
+    console.log(activeStory.log);
+    //eslint-disable-next-line
+    const csvContent = `data:text/csv;charset=utf-8,${activeStory.title}\n${getThemeNameFromStoryId(activeStory.id)}\n\nStory Log:\nTimestamp,Prompt,Keywords,Response\n` + activeStory.log.map(log => [log.timestamp, `"${log.prompt.replace('"', '\"')}"`, (log.keywords)?`"${log.keywords.replace('"', '\"')}"`:'', `"${log.response.replace('"', '\"')}"`].join(',')).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'ttrpg_prompts_story_log.csv');
+    document.body.appendChild(link);
+    link.click();
+  }
+
+  const getThemeNameFromStoryId = (story_id) => {
+    return themes.filter(theme => theme.id === stories.filter(story => story.id === story_id)[0].theme)[0].name;
+  };
   
   useEffect(() => {
     const savedStories = JSON.parse(localStorage.getItem('stories'));
@@ -38,16 +53,25 @@ const App = () => {
     
   }, []);
 
+  useEffect(() => {
+    const activeStory = stories.filter(story => story.id === activeStoryId);
+    if (activeStory.length) {
+      const theme_id = activeStory[0].theme;
+      const activeTheme = themes.filter(theme => theme.id === theme_id);
+      setPrompts(activeTheme[0].prompts);
+    }
+  }, [activeStoryId, stories]);
+
+  useEffect(() => {
+    setFilteredPrompts(prompts);
+  }, [prompts]);
+
   const handleTitleChange = (event) => {
     setTitle(event.target.value);
   };
 
   const handleThemeChange = (event) => {
     setSelectedTheme(event.target.value);
-  };
-
-  const handleRulesetChange = (event) => {
-    setSelectedRuleset(event.target.value);
   };
 
   const handleSubmit = (event) => {
@@ -67,8 +91,7 @@ const App = () => {
     const newStory = {
       id: Math.floor(Date.now()),
       title: title,
-      theme: selectedTheme,
-      ruleset: selectedRuleset,
+      theme: +selectedTheme,
       log: []
     }
     const updatedStories = [...stories, newStory];
@@ -82,7 +105,6 @@ const App = () => {
   const resetNewStoryForm = () => {
     setTitle('');
     setSelectedTheme('');
-    setSelectedRuleset('');
     setNewStoryValidated(false);
   };
 
@@ -123,9 +145,7 @@ const App = () => {
   const handleSearchInputChange = (event) => {
     const term = event.target.value;
     setSearchTerm(term);
-    const filtered = prompts.filter((prompt) =>
-      prompt.toLowerCase().includes(term.toLowerCase())
-    );
+    const filtered = prompts.filter(prompt => prompt.toLowerCase().includes(term.toLowerCase()));
     setFilteredPrompts(filtered);
   };
 
@@ -179,7 +199,8 @@ const App = () => {
           <h1>TTRPG Prompts</h1>
         </div>
         <Tabs 
-          className="mx-1"
+          className="mx-1 flex-column flex-lg-row"
+          fill 
           activeKey={activeStoryId}
           onSelect={(i) => {
             const id = parseInt(i);
@@ -191,7 +212,7 @@ const App = () => {
           }}
         >
           {stories.map(story => (
-            <Tab key={story.id} eventKey={story.id} title={story.title}>
+            <Tab key={story.id} eventKey={story.id} title={<><span className="tab-title">{story.title}</span><span className="tab-subtitle">{getThemeNameFromStoryId(story.id)}</span></>}>
               <Card>
                 <Card.Header>
                   <Stack className="my-2" direction="horizontal" gap={3}>
@@ -200,7 +221,7 @@ const App = () => {
                       placeholder="Search prompts..." 
                       value={searchTerm}
                       onChange={handleSearchInputChange} />
-                    <Button className="text-nowrap" variant="outline-primary" title="Download story log."><BoxArrowDown /> Download</Button>
+                    <Button className="text-nowrap" variant="outline-primary" title="Download story log." onClick={exportToCSV}><BoxArrowDown /> Download</Button>
                     <Button className="text-nowrap" variant="outline-danger" title="Delete story." data-id={story.id} onClick={handleDeleteStoryButtonClick}><Trash /> Delete</Button>
                   </Stack>
                 </Card.Header>
@@ -221,8 +242,7 @@ const App = () => {
               </Card>
             </Tab>
           ))}
-          <Tab eventKey="-1" title={<><Plus title="Add a new story." />Add Story</>}>
-          </Tab>
+          <Tab eventKey="-1" title={<><span className="tab-title"><Plus title="Add a new story." />Add Story</span></>}></Tab>
         </Tabs>
       </Container>
       {addStoryModalActive && (
@@ -258,28 +278,12 @@ const App = () => {
                 onChange={handleThemeChange}
               >
                 <option></option>
-                {themes.map((theme, index) => (
-                  <option key={index}>{theme}</option>
+                {themes.map(theme => (
+                  <option key={`theme_id_${theme.id}`} value={theme.id}>{theme.name}</option>
                 ))}
               </Form.Control>
               <Form.Control.Feedback type="invalid">
                 Select a theme for this story.
-              </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group controlId="ruleset">
-              <Form.Label>Ruleset</Form.Label>
-              <Form.Control 
-                as="select"
-                required
-                onChange={handleRulesetChange}
-              >
-                <option></option>
-                {rulesets.map((ruleset, index) => (
-                  <option key={index}>{ruleset}</option>
-                ))}
-              </Form.Control>
-              <Form.Control.Feedback type="invalid">
-                Select a ruleset for this story.
               </Form.Control.Feedback>
             </Form.Group>
             <Stack direction="horizontal" className="justify-content-center mt-4" gap={3}>
